@@ -5,7 +5,7 @@ use std::io::Write;
 use std::io::{stdin, stdout};
 
 //got this from the rumdump lab
-pub fn load(input: Option<&str>) -> Vec<u32> {
+pub fn load(instructions: & mut Vec<u32>, input: Option<&str>) {
     let mut raw_reader: Box<dyn std::io::BufRead> = match input {
         None => Box::new(std::io::BufReader::new(std::io::stdin())),
         
@@ -18,14 +18,17 @@ pub fn load(input: Option<&str>) -> Vec<u32> {
     };
     let mut buf = Vec::<u8>::new();
     raw_reader.read_to_end(&mut buf).unwrap();
-    let instructions: Vec<u32> = buf.chunks_exact(4).map(|x| u32::from_be_bytes(x.try_into().unwrap())).collect();
-    instructions
+    for chunk in buf.chunks_exact(4) {
+        let word = u32::from_be_bytes(chunk.try_into().unwrap());
+        instructions.push(word);
+    }
 }
 
 fn main() {
     let input = env::args().nth(1);
     let mut regs:[u32; 8] = [0,0,0,0,0,0,0,0];
-    let mut memory:Vec<Vec<u32>> = vec![load(input.as_deref())];
+    let mut memory:Vec<Vec<u32>> = vec![vec![]];
+    load(&mut memory[0], input.as_deref());
     let mut unmapped_memory: Vec<u32> = vec![];
     let mut program_counter: usize = 0;
     loop{
