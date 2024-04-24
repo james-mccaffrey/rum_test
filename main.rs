@@ -1,9 +1,8 @@
 use std::env;
-use std::time::Instant;
-use std::io::stdin;
-use std::io;
+use std::convert::TryInto;
 use std::io::Read;
 use std::io::Write;
+use std::io::{stdin, stdout};
 
 //got this from the rumdump lab
 pub fn load(input: Option<&str>) -> Vec<u32> {
@@ -29,63 +28,57 @@ fn main() {
     let mut memory:Vec<Vec<u32>> = vec![load(input.as_deref())];
     let mut unmapped_memory: Vec<u32> = vec![];
     let mut program_counter: usize = 0;
-    let now = Instant::now();
     loop{
         let instruction = memory[0][program_counter]; 
         program_counter+=1;
 
         let op = (instruction >> 28) as u8;
-        let ra = ((instruction >> 6) & 0b111) as u8;
-        let rb = ((instruction >> 3) & 0b111) as u8;
-        let rc = (instruction & 0b111) as u8;
+        let ra = ((instruction >> 6) & 0b111) as usize;
+        let rb = ((instruction >> 3) & 0b111) as usize;
+        let rc = (instruction & 0b111) as usize;
 
         match op {
             0 => {
-                if regs[rc as usize] != 0 {
-                    regs[ra as usize] = regs[rb as usize];
+                if regs[rc] != 0 {
+                    regs[ra] = regs[rb];
                 }
             },
-            1 => regs[ra as usize] = memory[regs[rb as usize] as usize][regs[rc as usize] as usize],
-            2 => memory[regs[ra as usize] as usize][regs[rb as usize] as usize] = regs[rc as usize],//mem.update_word(seg[ra as usize], seg[rb as usize], seg[rc as usize]),
-            3 => regs[ra as usize] = regs[rb as usize].wrapping_add(regs[rc as usize]),//Register::add(&mut regs, ra, rb,  rc), 
-            4 => regs[ra as usize] = regs[rb as usize].wrapping_mul(regs[rc as usize]),
-            5 => regs[ra as usize] = regs[rb as usize] / regs[rc as usize],
-            6 => regs[ra as usize] = !(regs[rb as usize] & regs[rc as usize]),
-            7 => {
-                let elapsed = now.elapsed();
-                eprintln!("{:.2?}", elapsed);
-                std::process::exit(0);
-            },
+            1 => regs[ra] = memory[regs[rb] as usize][regs[rc as usize] as usize],
+            2 => memory[regs[ra] as usize][regs[rb] as usize] = regs[rc as usize],//mem.update_word(seg[ra], seg[rb], seg[rc as usize]),
+            3 => regs[ra] = regs[rb].wrapping_add(regs[rc as usize]),//Register::add(&mut regs, ra, rb,  rc), 
+            4 => regs[ra] = regs[rb].wrapping_mul(regs[rc as usize]),
+            5 => regs[ra] = regs[rb] / regs[rc],
+            6 => regs[ra] = !(regs[rb] & regs[rc]),
+            7 => std::process::exit(0),
             8 => {
                 match unmapped_memory.pop() {
                     Some(value) => {
-                        memory[value as usize] = vec![0; regs[rc as usize] as usize];
-                        regs[rb as usize] = value as u32;
+                        memory[value as usize] = vec![0; regs[rc] as usize];
+                        regs[rb] = value as u32;
                     }
                     None => {
-                        //unmapped_memory.push(memory.len() as u32 );
-                        memory.push(vec![0; regs[rc as usize] as usize]);
-                        regs[rb as usize] = memory.len() as u32 -1;
+                        memory.push(vec![0; regs[rc] as usize]);
+                        regs[rb] = memory.len() as u32 -1;
                     }
                 }
             },
                     
-            9 => unmapped_memory.push(regs[rc as usize]),
+            9 => unmapped_memory.push(regs[rc]),
             10 => {
-                io::stdout().write(&[regs[rc as usize] as u8]).unwrap();
-                io::stdout().flush().unwrap();
+                stdout().write_all(&[regs[rc] as u8]).unwrap();
+                stdout().flush().unwrap();
             },
-            11 => regs[rc as usize] = stdin().bytes().next().unwrap().unwrap() as u32,
+            11 => regs[rc] = stdin().bytes().next().unwrap().unwrap() as u32,
             12 => {
-                if regs[rb as usize] != 0 {
-                    memory[0] = memory[regs[rb as usize] as usize].clone();
+                if regs[rb] != 0 {
+                    memory[0] = memory[regs[rb] as usize].clone();
                 }
-                program_counter = regs[rc as usize] as usize;
+                program_counter = regs[rc] as usize;
             }, 
             13 => {
-                let rl = ((instruction << 4) >> 29) as u8;
+                let rl = ((instruction << 4) >> 29) as usize;
                 let vl = (instruction << 7) >> 7; 
-                regs[rl as usize] = vl;
+                regs[rl] = vl;
             },
             _ => println!("INVALID INSTRUCTION")
         }
